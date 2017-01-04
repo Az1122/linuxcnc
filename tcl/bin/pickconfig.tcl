@@ -298,6 +298,35 @@ set ::myconfigs_node   $linuxcnc::USER_CONFIG_DIR
 # order convention for items in the linuxcnc::USER_CONFIG_DIR list:
 set ::sampleconfigs [lindex $::configs_dir_list end] ;# last item
 
+# check for auxiliary applications example configs installed in
+# known directory defined by: linuxcnc::LINUXCNC_AUX_ExAMPLES
+set aux_examples $linuxcnc::LINUXCNC_AUX_EXAMPLES
+set ::aux_dir_list {}
+if [file isdirectory $aux_examples] {
+    foreach auxdir [glob $aux_examples/*] {
+        puts stderr "pickconfig: installed aux examples: $auxdir"
+        lappend ::configs_dir_list $auxdir
+        lappend ::aux_dir_list $auxdir
+    }
+}
+# user may specify auxiliary config directories using the environmental
+# variable LINUXCNC_AUX_CONFIGS (a colon (:) separated path)
+# This is useful for testing auxiliary apps without using a deb install
+if [info exists ::env(LINUXCNC_AUX_CONFIGS)] {
+    foreach auxdir [split $::env(LINUXCNC_AUX_CONFIGS) :] {
+        if {   [file isdirectory $auxdir] \
+            && [file readable $auxdir] } {
+            puts stderr "pickconfig: user aux examples: $auxdir"
+            lappend ::configs_dir_list $auxdir
+        } else {
+            puts stderr "pickconfig: LINUXCNC_AUX_CONFIGS invalid directory:"
+            puts stderr "    $auxdir"
+            puts stderr "continuing"
+        }
+    }
+}
+
+
 set ::last_ini "none"
 set ::last_ini [initialize_config]
 
@@ -396,7 +425,11 @@ proc describe {dir} {
         set ::sampleconfigs_node $dir
 	return [msgcat::mc "Sample Configurations"]
     }
-    return $dir/
+    if {[lsearch $::aux_dir_list $dir] >= 0} {
+        return [file tail $dir]
+    } else {
+        return $dir
+    }
 }
 
 proc treeopen {args} {
